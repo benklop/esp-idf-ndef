@@ -1,10 +1,9 @@
 #ifndef NdefRecord_h
 #define NdefRecord_h
 
-#include <Due.h>
-#include <Arduino.h>
-#include <Ndef.h>
+#include <cstring>
 
+typedef uint8_t byte;
 
 class NdefRecord
 {
@@ -35,9 +34,7 @@ class NdefRecord
         void setPayload(const byte *header, const int headerLength, const byte *payload, const int payloadLength);
         void setId(const byte *id, const unsigned int numBytes);
 
-#ifdef NDEF_USE_SERIAL
         void print();
-#endif
     private:
         byte _getTnfByte(bool firstRecord, bool lastRecord);
         TNF _tnf; // 3 bit

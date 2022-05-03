@@ -1,4 +1,7 @@
-#include <NfcAdapter.h>
+#include <esp_log.h>
+#include "NfcAdapter.h"
+
+static const char* LOG_TAG = "NFC Adapter";
 
 NfcAdapter::NfcAdapter(MFRC522 *interface)
 {
@@ -9,14 +12,9 @@ NfcAdapter::~NfcAdapter(void)
 {
 }
 
-void NfcAdapter::begin(bool verbose)
+void NfcAdapter::begin()
 {
-#ifdef NDEF_USE_SERIAL
-    if (verbose)
-    {
-        shield->PCD_DumpVersionToSerial();
-    }
-#endif
+  shield->PCD_DumpVersionToSerial();
 }
 
 bool NfcAdapter::tagPresent()
@@ -52,16 +50,12 @@ bool NfcAdapter::format()
 #endif
     if(shield->PICC_GetType(shield->uid.sak) == MFRC522::PICC_TYPE_MIFARE_UL)
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.print(F("No need for formating a UL"));
-#endif
+        ESP_LOGD(LOG_TAG, "No need for formating a UL");
         return true;
     }
     else
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.print(F("Unsupported Tag."));
-#endif
+        ESP_LOGD(LOG_TAG, "Unsupported Tag.");
         return false;
     }
 }
@@ -73,9 +67,7 @@ bool NfcAdapter::clean()
 #ifdef NDEF_SUPPORT_MIFARE_CLASSIC
     if (type == NfcTag::TYPE_MIFARE_CLASSIC)
     {
-        #ifdef NDEF_DEBUG
-        Serial.println(F("Cleaning Mifare Classic"));
-        #endif
+        ESP_LOGD(LOG_TAG, "Cleaning Mifare Classic");
         MifareClassic mifareClassic = MifareClassic(shield);
         return mifareClassic.formatMifare();
     }
@@ -83,17 +75,13 @@ bool NfcAdapter::clean()
 #endif
     if (type == NfcTag::TYPE_2)
     {
-        #ifdef NDEF_DEBUG
-        Serial.println(F("Cleaning Mifare Ultralight"));
-        #endif
+        ESP_LOGD(LOG_TAG, "Cleaning Mifare Ultralight");
         MifareUltralight ultralight = MifareUltralight(shield);
         return ultralight.clean();
     }
     else
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.print(F("No driver for card type "));Serial.println(type);
-#endif
+        ESP_LOGI(LOG_TAG, "No driver for card type %d", type);
         return false;
     }
 
@@ -106,9 +94,7 @@ NfcTag NfcAdapter::read()
 #ifdef NDEF_SUPPORT_MIFARE_CLASSIC
     if (type == NfcTag::TYPE_MIFARE_CLASSIC)
     {
-        #ifdef NDEF_DEBUG
-        Serial.println(F("Reading Mifare Classic"));
-        #endif
+        ESP_LOGD(LOG_TAG, "Reading Mifare Classic");
         MifareClassic mifareClassic = MifareClassic(shield);
         return mifareClassic.read();
     }
@@ -116,22 +102,18 @@ NfcTag NfcAdapter::read()
 #endif
     if (type == NfcTag::TYPE_2)
     {
-        #ifdef NDEF_DEBUG
-        Serial.println(F("Reading Mifare Ultralight"));
-        #endif
+        ESP_LOGD(LOG_TAG, "Reading Mifare Ultralight");
         MifareUltralight ultralight = MifareUltralight(shield);
         return ultralight.read();
     }
     else if (type == NfcTag::TYPE_UNKNOWN)
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.print(F("Can not determine tag type"));
-#endif
+        ESP_LOGI(LOG_TAG, "Can not determine tag type");
         return NfcTag(shield->uid.uidByte, shield->uid.size, NfcTag::TYPE_UNKNOWN);
     }
     else
     {
-        // Serial.print(F("No driver for card type "));Serial.println(type);
+        ESP_LOGI(LOG_TAG, "No driver for card type %d", type);
         // TODO should set type here
         return NfcTag(shield->uid.uidByte, shield->uid.size, NfcTag::TYPE_UNKNOWN);
     }
@@ -145,9 +127,7 @@ bool NfcAdapter::write(NdefMessage& ndefMessage)
 #ifdef NDEF_SUPPORT_MIFARE_CLASSIC
     if (type == NfcTag::TYPE_MIFARE_CLASSIC)
     {
-        #ifdef NDEF_DEBUG
-        Serial.println(F("Writing Mifare Classic"));
-        #endif
+        ESP_LOGD(LOG_TAG, "Writing Mifare Classic");
         MifareClassic mifareClassic = MifareClassic(shield);
         return mifareClassic.write(ndefMessage);
     }
@@ -155,24 +135,18 @@ bool NfcAdapter::write(NdefMessage& ndefMessage)
 #endif
     if (type == NfcTag::TYPE_2)
     {
-        #ifdef NDEF_DEBUG
-        Serial.println(F("Writing Mifare Ultralight"));
-        #endif
+        ESP_LOGD(LOG_TAG, "Writing Mifare Ultralight");
         MifareUltralight mifareUltralight = MifareUltralight(shield);
         return mifareUltralight.write(ndefMessage);
     }
     else if (type == NfcTag::TYPE_UNKNOWN)
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.print(F("Can not determine tag type"));
-#endif
+        ESP_LOGI(LOG_TAG, "Can not determine tag type");
         return false;
     }
     else
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.print(F("No driver for card type "));Serial.println(type);
-#endif
+        ESP_LOGD(LOG_TAG, "No driver for card type %d", type);
         return false;
     }
 }

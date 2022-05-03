@@ -3,20 +3,17 @@
 
 #include <MFRC522.h>
 #include <NfcTag.h>
-#include <Ndef.h>
 
 // Drivers
 #include <MifareClassic.h>
 #include <MifareUltralight.h>
-
-//#define NDEF_DEBUG 1
 
 class NfcAdapter {
     public:
         NfcAdapter(MFRC522 *interface);
 
         ~NfcAdapter(void);
-        void begin(bool verbose=true);
+        void begin();
         bool tagPresent(); // tagAvailable
         NfcTag read();
         bool write(NdefMessage& ndefMessage);

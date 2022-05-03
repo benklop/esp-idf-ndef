@@ -6,15 +6,12 @@
 
 #ifdef NDEF_SUPPORT_MIFARE_CLASSIC
 
-//#define MIFARE_CLASSIC_DEBUG 1
-
 #define BLOCK_SIZE 16
 #define LONG_TLV_SIZE 4
 #define SHORT_TLV_SIZE 2
 
-#include <Due.h>
 #include <MFRC522.h>
-#include <Ndef.h>
+#include <MFRC522Debug.h>
 #include <NfcTag.h>
 
 class MifareClassic

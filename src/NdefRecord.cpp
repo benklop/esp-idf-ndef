@@ -1,4 +1,9 @@
+#include <cstdlib>
+#include <string>
+#include <esp_log.h>
 #include "NdefRecord.h"
+
+static const char* LOG_TAG = "NDef Record";
 
 NdefRecord::NdefRecord()
 {
@@ -50,7 +55,7 @@ NdefRecord::~NdefRecord()
 
 NdefRecord& NdefRecord::operator=(const NdefRecord& rhs)
 {
-    //Serial.println("NdefRecord ASSIGN");
+    ESP_LOGD(LOG_TAG, "NdefRecord ASSIGN");
 
     if (this != &rhs)
     {
@@ -70,7 +75,7 @@ NdefRecord& NdefRecord::operator=(const NdefRecord& rhs)
             if(_type)
                 memcpy(_type, rhs._type, _typeLength);
             else
-                Serial.println("No type malloc");
+                ESP_LOGE(LOG_TAG, "type malloc failed");
         }
         else
         {
@@ -83,7 +88,7 @@ NdefRecord& NdefRecord::operator=(const NdefRecord& rhs)
             if(_payload)
                 memcpy(_payload, rhs._payload, _payloadLength);
             else
-                Serial.println("No type malloc");
+                ESP_LOGE(LOG_TAG, "payload malloc failed");
         }
         else
         {
@@ -96,7 +101,7 @@ NdefRecord& NdefRecord::operator=(const NdefRecord& rhs)
             if(_id)
                 memcpy(_id, rhs._id, _idLength);
             else
-                Serial.println("No type malloc");
+                ESP_LOGE(LOG_TAG, "id malloc failed");
         }
         else
         {
@@ -277,52 +282,54 @@ void NdefRecord::setId(const byte *id, const unsigned int numBytes)
     memcpy(_id, id, numBytes);
     _idLength = numBytes;
 }
-#ifdef NDEF_USE_SERIAL
 
 void NdefRecord::print()
 {
-    Serial.println(F("  NDEF Record"));
-    Serial.print(F("    TNF 0x"));Serial.print(_tnf, HEX);Serial.print(" ");
+    ESP_LOGI(LOG_TAG, "  NDEF Record");
+    std::string meaning;
     switch (_tnf) {
     case TNF_EMPTY:
-        Serial.println(F("Empty"));
+        meaning = "Empty";
         break;
     case TNF_WELL_KNOWN:
-        Serial.println(F("Well Known"));
+        meaning = "Well Known";
         break;
     case TNF_MIME_MEDIA:
-        Serial.println(F("Mime Media"));
+        meaning = "Mime Media";
         break;
     case TNF_ABSOLUTE_URI:
-        Serial.println(F("Absolute URI"));
+        meaning = "Absolute URI";
         break;
     case TNF_EXTERNAL_TYPE:
-        Serial.println(F("External"));
+        meaning = "External";
         break;
     case TNF_UNKNOWN:
-        Serial.println(F("Unknown"));
+        meaning = "Unknown";
         break;
     case TNF_UNCHANGED:
-        Serial.println(F("Unchanged"));
+        meaning = "Unchanged";
         break;
     case TNF_RESERVED:
-        Serial.println(F("Reserved"));
+        meaning = "Reserved";
         break;
     }
-    Serial.print(F("    Type Length 0x"));Serial.print(_typeLength, HEX);Serial.print(" ");Serial.println(_typeLength);
-    Serial.print(F("    Payload Length 0x"));Serial.print(_payloadLength, HEX);;Serial.print(" ");Serial.println(_payloadLength);
+    ESP_LOGI(LOG_TAG, "    TNF 0x%x, %s", _tnf, meaning);
+
+    ESP_LOGI(LOG_TAG, "    Type Length 0x%x %d", _typeLength, _typeLength);
+    ESP_LOGI(LOG_TAG, "    Payload Length 0x%x %d", _payloadLength, _payloadLength);
     if (_idLength)
     {
-        Serial.print(F("    Id Length 0x"));Serial.println(_idLength, HEX);
+        ESP_LOGI(LOG_TAG, "    Id Length 0x%x", _idLength);
     }
-    Serial.print(F("    Type "));PrintHexChar(_type, _typeLength);
-    // TODO chunk large payloads so this is readable
-    Serial.print(F("    Payload "));PrintHexChar(_payload, _payloadLength);
+    ESP_LOGI(LOG_TAG, "    Type:");
+    ESP_LOG_BUFFER_HEX(LOG_TAG, _type, _typeLength);
+    ESP_LOGI(LOG_TAG, "    Payload:");
+    ESP_LOG_BUFFER_HEXDUMP(LOG_TAG, _payload, _payloadLength, ESP_LOG_INFO);
     if (_idLength)
     {
-        Serial.print(F("    Id "));PrintHexChar(_id, _idLength);
+        ESP_LOGI(LOG_TAG, "    Id: ");
+        ESP_LOG_BUFFER_HEX(LOG_TAG, _id, _idLength);
     }
-    Serial.print(F("    Record is "));Serial.print(getEncodedSize());Serial.println(" bytes");
+    ESP_LOGI(LOG_TAG, "    Record is %d bytes", getEncodedSize());
 
 }
-#endif

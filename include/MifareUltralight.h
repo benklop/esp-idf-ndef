@@ -3,9 +3,6 @@
 
 #include <MFRC522.h>
 #include <NfcTag.h>
-#include <Ndef.h>
-
-//#define MIFARE_ULTRALIGHT_DEBUG 1
 
 #define ULTRALIGHT_PAGE_SIZE 4
 #define ULTRALIGHT_READ_SIZE 16
@@ -21,11 +18,11 @@ class MifareUltralight
         MifareUltralight(MFRC522 *nfcShield);
         ~MifareUltralight();
         NfcTag read();
-        boolean write(NdefMessage& ndefMessage);
-        boolean clean();
+        bool write(NdefMessage& ndefMessage);
+        bool clean();
     private:
         MFRC522 *nfc;
-        boolean isUnformatted();
+        bool isUnformatted();
         uint16_t readTagSize();
         void findNdefMessage(uint16_t *messageLength, uint16_t *ndefStartIndex);
         uint16_t calculateBufferSize(uint16_t messageLength, uint16_t ndefStartIndex);

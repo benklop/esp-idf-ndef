@@ -1,4 +1,7 @@
-#include <MifareUltralight.h>
+#include <esp_log.h>
+#include "MifareUltralight.h"
+
+static const char* LOG_TAG = "Mifare Ultralight";
 
 MifareUltralight::MifareUltralight(MFRC522 *nfcShield)
 {
@@ -13,9 +16,7 @@ NfcTag MifareUltralight::read()
 {
     if (isUnformatted())
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.println(F("WARNING: Tag is not formatted."));
-#endif
+        ESP_LOGI(LOG_TAG, "WARNING: Tag is not formatted.");
         return NfcTag(nfc->uid.uidByte, nfc->uid.size, NfcTag::TYPE_2);
     }
 
@@ -40,19 +41,15 @@ NfcTag MifareUltralight::read()
         MFRC522::StatusCode status = nfc->MIFARE_Read(page, &buffer[index], &dataSize);
         if (status == MFRC522::STATUS_OK)
         {
-            #ifdef MIFARE_ULTRALIGHT_DEBUG
-            Serial.print(F("Page "));Serial.print(page);Serial.print(" ");
-            PrintHexChar(&buffer[index], ULTRALIGHT_PAGE_SIZE);
-            PrintHexChar(&buffer[index+ULTRALIGHT_PAGE_SIZE], ULTRALIGHT_PAGE_SIZE);
-            PrintHexChar(&buffer[index+2*ULTRALIGHT_PAGE_SIZE], ULTRALIGHT_PAGE_SIZE);
-            PrintHexChar(&buffer[index+3*ULTRALIGHT_PAGE_SIZE], ULTRALIGHT_PAGE_SIZE);
-            #endif
+            ESP_LOGD(LOG_TAG, "Page %d:", page);
+            ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, &buffer[index], ULTRALIGHT_PAGE_SIZE, ESP_LOG_DEBUG);
+            ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, &buffer[index+ULTRALIGHT_PAGE_SIZE], ULTRALIGHT_PAGE_SIZE, ESP_LOG_DEBUG);
+            ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, &buffer[index+2*ULTRALIGHT_PAGE_SIZE], ULTRALIGHT_PAGE_SIZE, ESP_LOG_DEBUG);
+            ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, &buffer[index+3*ULTRALIGHT_PAGE_SIZE], ULTRALIGHT_PAGE_SIZE, ESP_LOG_DEBUG);
         }
         else
         {
-#ifdef NDEF_USE_SERIAL
-            Serial.print(F("Read failed "));Serial.println(page);
-#endif
+            ESP_LOGI(LOG_TAG, "Read failed %d", page);
             return NfcTag(nfc->uid.uidByte, nfc->uid.size, NfcTag::TYPE_2);
         }
 
@@ -68,7 +65,7 @@ NfcTag MifareUltralight::read()
 
 }
 
-boolean MifareUltralight::isUnformatted()
+bool MifareUltralight::isUnformatted()
 {
     uint8_t page = 4;
     byte dataSize = ULTRALIGHT_READ_SIZE+2;
@@ -80,9 +77,7 @@ boolean MifareUltralight::isUnformatted()
     }
     else
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.print(F("Error. Failed read page "));Serial.println(page);
-#endif
+        ESP_LOGI(LOG_TAG, "Error. Failed read page %d", page);
         return false;
     }
 }
@@ -98,9 +93,7 @@ uint16_t MifareUltralight::readTagSize()
     {
         // See AN1303 - different rules for Mifare Family byte2 = (additional data + 48)/8
         tagCapacity = data[2] * 8;
-        #ifdef MIFARE_ULTRALIGHT_DEBUG
-        Serial.print(F("Tag capacity "));Serial.print(tagCapacity);Serial.println(F(" bytes"));
-        #endif
+        ESP_LOGD(LOG_TAG, "Tag capacity %d bytes", tagCapacity);
 
         // TODO future versions should get lock information
     }
@@ -116,13 +109,11 @@ void MifareUltralight::findNdefMessage(uint16_t *messageLength, uint16_t *ndefSt
 
     if(nfc->MIFARE_Read(4, data, &dataSize) == MFRC522::STATUS_OK)
     {
-        #ifdef MIFARE_ULTRALIGHT_DEBUG
-        Serial.println(F("Pages 4-7"));
-        PrintHexChar(data, 18);
-        PrintHexChar(data+ULTRALIGHT_PAGE_SIZE, 18);
-        PrintHexChar(data+2*ULTRALIGHT_PAGE_SIZE, 18);
-        PrintHexChar(data+3*ULTRALIGHT_PAGE_SIZE, 18);
-        #endif
+        ESP_LOGD(LOG_TAG, "Pages 4-7");
+        ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, data, 18, ESP_LOG_DEBUG);
+        ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, data+ULTRALIGHT_PAGE_SIZE, 18, ESP_LOG_DEBUG);
+        ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, data+2*ULTRALIGHT_PAGE_SIZE, 18, ESP_LOG_DEBUG);
+        ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, data+3*ULTRALIGHT_PAGE_SIZE, 18, ESP_LOG_DEBUG);
 
         if (data[0] == 0x03)
         {
@@ -137,10 +128,8 @@ void MifareUltralight::findNdefMessage(uint16_t *messageLength, uint16_t *ndefSt
         }
     }
 
-    #ifdef MIFARE_ULTRALIGHT_DEBUG
-    Serial.print(F("messageLength "));Serial.println(*messageLength);
-    Serial.print(F("ndefStartIndex "));Serial.println(*ndefStartIndex);
-    #endif
+    ESP_LOGD(LOG_TAG, "messageLength %d", *messageLength);
+    ESP_LOGD(LOG_TAG, "ndefStartIndex %d", *ndefStartIndex);
 }
 
 // buffer is larger than the message, need to handle some data before and after
@@ -162,13 +151,11 @@ uint16_t MifareUltralight::calculateBufferSize(uint16_t messageLength, uint16_t 
     return bufferSize;
 }
 
-boolean MifareUltralight::write(NdefMessage& m)
+bool MifareUltralight::write(NdefMessage& m)
 {
     if (isUnformatted())
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.println(F("WARNING: Tag is not formatted."));
-#endif
+        ESP_LOGI(LOG_TAG, "WARNING: Tag is not formatted.");
         return false;
     }
     uint16_t tagCapacity = readTagSize(); // meta info for tag
@@ -178,9 +165,7 @@ boolean MifareUltralight::write(NdefMessage& m)
     uint16_t bufferSize = calculateBufferSize(messageLength, ndefStartIndex);
 
     if(bufferSize>tagCapacity) {
-	    #ifdef MIFARE_ULTRALIGHT_DEBUG
-    	Serial.print(F("Encoded Message length exceeded tag Capacity "));Serial.println(tagCapacity);
-    	#endif
+      ESP_LOGD(LOG_TAG, "Encoded Message length exceeded tag Capacity %d", tagCapacity);
     	return false;
     }
 
@@ -208,11 +193,9 @@ boolean MifareUltralight::write(NdefMessage& m)
     memset(encoded+ndefStartIndex+messageLength,0,bufferSize-ndefStartIndex-messageLength);
     encoded[ndefStartIndex+messageLength] = 0xFE; // terminator
 
-    #ifdef MIFARE_ULTRALIGHT_DEBUG
-    Serial.print(F("messageLength "));Serial.println(messageLength);
-    Serial.print(F("Tag Capacity "));Serial.println(tagCapacity);
-    PrintHex(encoded,bufferSize);
-    #endif
+    ESP_LOGD(LOG_TAG, "messageLength %d", messageLength);
+    ESP_LOGD(LOG_TAG, "Tag Capacity %d", tagCapacity);
+    ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, encoded, bufferSize, ESP_LOG_DEBUG);
 
     while (position < bufferSize){ //bufferSize is always times pagesize so no "last chunk" check
         // Although we have to provide 16 bytes to MIFARE_Write only 4 of them are written onto the tag
@@ -221,10 +204,8 @@ boolean MifareUltralight::write(NdefMessage& m)
         // write page
         if (nfc->MIFARE_Write(page, writeBuffer, 16) != MFRC522::STATUS_OK)
             return false;
-		#ifdef MIFARE_ULTRALIGHT_DEBUG
-        Serial.print(F("Wrote page "));Serial.print(page);Serial.print(F(" - "));
-    	PrintHex(src,ULTRALIGHT_PAGE_SIZE);
-    	#endif
+        ESP_LOGD(LOG_TAG, "Wrote page %d", page);
+    	  ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, src, ULTRALIGHT_PAGE_SIZE, ESP_LOG_DEBUG);
         page++;
         src+=ULTRALIGHT_PAGE_SIZE;
         position+=ULTRALIGHT_PAGE_SIZE;
@@ -234,7 +215,7 @@ boolean MifareUltralight::write(NdefMessage& m)
 
 // Mifare Ultralight can't be reset to factory state
 // zero out tag data like the NXP Tag Write Android application
-boolean MifareUltralight::clean()
+bool MifareUltralight::clean()
 {
     uint16_t tagCapacity = readTagSize();
 
@@ -245,10 +226,9 @@ boolean MifareUltralight::clean()
 
     for (int i = ULTRALIGHT_DATA_START_PAGE; i < pages; i++)
     {
-        #ifdef MIFARE_ULTRALIGHT_DEBUG
-        Serial.print(F("Wrote page "));Serial.print(i);Serial.print(F(" - "));
-        PrintHex(data, ULTRALIGHT_PAGE_SIZE);
-        #endif
+        
+        ESP_LOGD(LOG_TAG, "Wrote page %d", i);
+        ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, data, ULTRALIGHT_PAGE_SIZE, ESP_LOG_DEBUG);
         if (nfc->MIFARE_Write(i, data, 16) != MFRC522::STATUS_OK)
         {
             return false;

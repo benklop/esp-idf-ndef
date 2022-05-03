@@ -1,4 +1,8 @@
-#include <NfcTag.h>
+
+#include <esp_log.h>
+#include "NfcTag.h"
+
+static const char* LOG_TAG = "NFC Tag";
 
 NfcTag::NfcTag(byte *uid, uint8_t  uidLength, TagType tagType)
 {
@@ -65,33 +69,12 @@ void NfcTag::getUid(byte *uid, uint8_t *uidLength)
     *uidLength = _uidLength;
 }
 
-String NfcTag::getUidString()
-{
-    String uidString = "";
-    for (unsigned int i = 0; i < _uidLength; i++)
-    {
-        if (i > 0)
-        {
-            uidString += " ";
-        }
-
-        if (_uid[i] < 0xF)
-        {
-            uidString += "0";
-        }
-
-        uidString += String((unsigned int)_uid[i], (unsigned char)HEX);
-    }
-    uidString.toUpperCase();
-    return uidString;
-}
-
 NfcTag::TagType NfcTag::getTagType()
 {
     return _tagType;
 }
 
-boolean NfcTag::hasNdefMessage()
+bool NfcTag::hasNdefMessage()
 {
     return (_ndefMessage != NULL);
 }
@@ -105,19 +88,17 @@ bool NfcTag::isFormatted()
 {
     return _isFormatted;
 }
-#ifdef NDEF_USE_SERIAL
 
 void NfcTag::print()
 {
-    Serial.print(F("NFC Tag - "));Serial.println(_tagType);
-    Serial.print(F("UID "));Serial.println(getUidString());
+    ESP_LOGI(LOG_TAG, "NFC Tag - %d", _tagType);
+
     if (_ndefMessage == NULL)
     {
-        Serial.println(F("\nNo NDEF Message"));
+        ESP_LOGI(LOG_TAG, "No NDEF Message");
     }
     else
     {
         _ndefMessage->print();
     }
 }
-#endif

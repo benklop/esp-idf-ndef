@@ -1,4 +1,7 @@
-#include <NdefMessage.h>
+#include <esp_log.h>
+#include "NdefMessage.h"
+
+static const char* LOG_TAG = "NDef Message";
 
 NdefMessage::NdefMessage(void)
 {
@@ -7,10 +10,8 @@ NdefMessage::NdefMessage(void)
 
 NdefMessage::NdefMessage(const byte * data, const uint16_t numBytes)
 {
-#ifdef NDEF_USE_SERIAL
-    Serial.print(F("Decoding "));Serial.print(numBytes);Serial.println(F(" bytes"));
-    PrintHexChar(data, numBytes);
-#endif
+    ESP_LOGI(LOG_TAG, "Decoding %d bytes", numBytes);
+    ESP_LOG_BUFFER_HEX(LOG_TAG, data, numBytes);
 
     _recordCount = 0;
 
@@ -159,9 +160,7 @@ bool NdefMessage::addRecord(NdefRecord &record)
     }
     else
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.println(F("WARNING: Too many records. Increase MAX_NDEF_RECORDS."));
-#endif
+        ESP_LOGI(LOG_TAG, "WARNING: Too many records. Increase MAX_NDEF_RECORDS.");
         return false;
     }
 }
@@ -262,16 +261,12 @@ NdefRecord NdefMessage::operator[](uint8_t index)
     return getRecord(index);
 }
 
-#ifdef NDEF_USE_SERIAL
 void NdefMessage::print()
 {
-    Serial.print(F("\nNDEF Message "));Serial.print(_recordCount);Serial.print(F(" record"));
-    _recordCount == 1 ? Serial.print(", ") : Serial.print("s, ");
-    Serial.print(getEncodedSize());Serial.println(F(" bytes"));
+    ESP_LOGI(LOG_TAG, "\nNDEF Message %d record%s, %d bytes", _recordCount, _recordCount == 1 ? "," : "s,", getEncodedSize());
 
     for (unsigned int i = 0; i < _recordCount; i++)
     {
          _records[i]->print();
     }
 }
-#endif

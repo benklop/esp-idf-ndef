@@ -1,5 +1,8 @@
+#include <esp_log.h>
 #include "MifareClassic.h"
 #ifdef NDEF_SUPPORT_MIFARE_CLASSIC
+
+static const char* LOG_TAG = "Mifare Classic";
 
 MifareClassic::MifareClassic(MFRC522 *nfcShield)
 {
@@ -23,25 +26,19 @@ NfcTag MifareClassic::read()
     {
         if(_nfcShield->MIFARE_Read(4, data, &dataSize) != MFRC522::STATUS_OK)
         {
-#ifdef NDEF_USE_SERIAL
-            Serial.println(F("Error. Failed read block 4"));
-#endif
+            ESP_LOGE(LOG_TAG, "Error. Failed read block 4");
             return NfcTag(_nfcShield->uid.uidByte, _nfcShield->uid.size, NfcTag::TYPE_MIFARE_CLASSIC);
         }
 
         if (!decodeTlv(data, &messageLength, &messageStartIndex))
         {
-#ifdef NDEF_USE_SERIAL
-            Serial.println(F("Error. Could not decode TLV"));
-#endif
+            ESP_LOGE(LOG_TAG, "Error. Could not decode TLV");
             return NfcTag(_nfcShield->uid.uidByte, _nfcShield->uid.size, NfcTag::TYPE_UNKNOWN); // TODO should the error message go in NfcTag?
         }
     }
     else
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.println(F("Tag is not NDEF formatted."));
-#endif
+        ESP_LOGI(LOG_TAG, "Tag is not NDEF formatted.");
         return NfcTag(_nfcShield->uid.uidByte, _nfcShield->uid.size, NfcTag::TYPE_MIFARE_CLASSIC, false);
     }
 
@@ -52,10 +49,8 @@ NfcTag MifareClassic::read()
     int bufferSize = getBufferSize(messageLength) + 2;
     uint8_t buffer[bufferSize];
 
-    #ifdef MIFARE_CLASSIC_DEBUG
-    Serial.print(F("Message Length "));Serial.println(messageLength);
-    Serial.print(F("Buffer Size "));Serial.println(bufferSize);
-    #endif
+    ESP_LOGD(LOG_TAG, "Message Length %d", messageLength);
+    ESP_LOGD(LOG_TAG, "Buffer Size %d", bufferSize);
 
     while (index < bufferSize-2)
     {
@@ -66,9 +61,7 @@ NfcTag MifareClassic::read()
 
             if (_nfcShield->PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, currentBlock, &key, &(_nfcShield->uid)) != MFRC522::STATUS_OK)
             {
-#ifdef NDEF_USE_SERIAL
-                Serial.print(F("Error. Block Authentication failed for "));Serial.println(currentBlock);
-#endif
+                ESP_LOGE(LOG_TAG, "Error. Block Authentication failed for %d", currentBlock);
                 // TODO Nicer error handling
                 return NfcTag(_nfcShield->uid.uidByte, _nfcShield->uid.size, NfcTag::TYPE_MIFARE_CLASSIC);
             }
@@ -78,16 +71,12 @@ NfcTag MifareClassic::read()
         byte readBufferSize = 18;
         if(_nfcShield->MIFARE_Read(currentBlock, &buffer[index], &readBufferSize) == MFRC522::STATUS_OK)
         {
-            #ifdef MIFARE_CLASSIC_DEBUG
-            Serial.print(F("Block "));Serial.print(currentBlock);Serial.print(" ");
-            PrintHexChar(&buffer[index], BLOCK_SIZE);
-            #endif
+            ESP_LOGD(LOG_TAG, "Block %d:", currentBlock);
+            ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, &buffer[index], BLOCK_SIZE, ESP_LOG_DEBUG);
         }
         else
         {
-#ifdef NDEF_USE_SERIAL
-            Serial.print(F("Read failed "));Serial.println(currentBlock);
-#endif
+            ESP_LOGE(LOG_TAG, "Read failed %d", currentBlock);
             // TODO Nicer error handling
             return NfcTag(_nfcShield->uid.uidByte, _nfcShield->uid.size, NfcTag::TYPE_MIFARE_CLASSIC);
         }
@@ -98,9 +87,7 @@ NfcTag MifareClassic::read()
         // skip the trailer block
         if (((currentBlock < 128) && ((currentBlock+1) % 4 == 0)) || ((currentBlock >= 128) && ((currentBlock+1) % 16 == 0)))
         {
-            #ifdef MIFARE_CLASSIC_DEBUG
-            Serial.print(F("Skipping block "));Serial.println(currentBlock);
-            #endif
+            ESP_LOGD(LOG_TAG, "Skipping block %d", currentBlock);
             currentBlock++;
         }
     }
@@ -150,9 +137,7 @@ int MifareClassic::getNdefStartIndex(byte *data)
         }
         else
         {
-#ifdef NDEF_USE_SERIAL
-            Serial.print("Unknown TLV ");Serial.println(data[i], HEX);
-#endif
+            ESP_LOGI(LOG_TAG, "Unknown TLV %x", data[i]);
             return -2;
         }
     }
@@ -174,9 +159,7 @@ bool MifareClassic::decodeTlv(byte *data, int *messageLength, int *messageStartI
 
     if (i < 0 || data[i] != 0x3)
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.println(F("Error. Can't decode message length."));
-#endif
+        ESP_LOGE(LOG_TAG, "Error. Can't decode message length.");
         return false;
     }
     else
@@ -211,41 +194,31 @@ bool MifareClassic::formatNDEF()
     // TODO use UID from method parameters?
     if (_nfcShield->PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, 1, &keya, &(_nfcShield->uid)) != MFRC522::STATUS_OK)
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.println(F("Unable to authenticate block 1 to enable card formatting!"));
-#endif
+        ESP_LOGE(LOG_TAG, "Unable to authenticate block 1 to enable card formatting!");
         return false;
     }
 
     if (_nfcShield->MIFARE_Write(1, blockbuffer1, 16) != MFRC522::STATUS_OK)
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.println(F("Unable to format the card for NDEF: Block 1 failed"));
-#endif
+        ESP_LOGE(LOG_TAG, "Unable to format the card for NDEF: Block 1 failed");
         return false;
     }
 
     if (_nfcShield->MIFARE_Write(2, blockbuffer2, 16) != MFRC522::STATUS_OK)
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.println(F("Unable to format the card for NDEF: Block 2 failed"));
-#endif
+        ESP_LOGE(LOG_TAG, "Unable to format the card for NDEF: Block 2 failed");
         return false;
     }
     // Write new key A and permissions
     if (_nfcShield->MIFARE_Write(3, blockbuffer3, 16) != MFRC522::STATUS_OK)
     {
-#ifdef NDEF_USE_SERIAL
-        Serial.println(F("Unable to format the card for NDEF: Block 3 failed"));
-#endif
+        ESP_LOGE(LOG_TAG, "Unable to format the card for NDEF: Block 3 failed");
         return false;
     }
     for (int i=4; i<64; i+=4) {
         if (_nfcShield->PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, i, &keya, &(_nfcShield->uid)) != MFRC522::STATUS_OK)
         {
-#ifdef NDEF_USE_SERIAL
-                    Serial.print(F("Unable to authenticate block "));Serial.println(i);
-#endif
+            ESP_LOGE(LOG_TAG, "Unable to authenticate block %d", i);
             return false;
         }
 
@@ -253,9 +226,7 @@ bool MifareClassic::formatNDEF()
         {
             if (_nfcShield->MIFARE_Write(i, emptyNdefMesg, 16) != MFRC522::STATUS_OK)
             {
-#ifdef NDEF_USE_SERIAL
-                Serial.print(F("Unable to write block "));Serial.println(i);
-#endif
+                ESP_LOGE(LOG_TAG, "Unable to write block %d", i);
                 return false;
             }
         }
@@ -263,31 +234,23 @@ bool MifareClassic::formatNDEF()
         {
             if (_nfcShield->MIFARE_Write(i, blockbuffer0, 16) != MFRC522::STATUS_OK)
             {
-#ifdef NDEF_USE_SERIAL
-                Serial.print(F("Unable to write block "));Serial.println(i);
-#endif
+                ESP_LOGE(LOG_TAG, "Unable to write block %d", i);
                 return false;
             }
         }
         if (_nfcShield->MIFARE_Write(i+1, blockbuffer0, 16) != MFRC522::STATUS_OK)
         {
-#ifdef NDEF_USE_SERIAL
-            Serial.print(F("Unable to write block "));Serial.println(i+1);
-#endif
+            ESP_LOGE(LOG_TAG, "Unable to write block %d", i+1);
             return false;
         }
         if (_nfcShield->MIFARE_Write(i+2, blockbuffer0, 16) != MFRC522::STATUS_OK)
         {
-#ifdef NDEF_USE_SERIAL
-            Serial.print(F("Unable to write block "));Serial.println(i+2);
-#endif
+            ESP_LOGE(LOG_TAG, "Unable to write block %d", i+2);
             return false;
         }
         if (_nfcShield->MIFARE_Write(i+3, blockbuffer4, 16) != MFRC522::STATUS_OK)
         {
-#ifdef NDEF_USE_SERIAL
-            Serial.print(F("Unable to write block "));Serial.println(i+3);
-#endif
+            ESP_LOGE(LOG_TAG, "Unable to write block %d", i+3);
             return false;
         }
     }
@@ -321,9 +284,7 @@ bool MifareClassic::formatMifare()
         // Step 1: Authenticate the current sector using key B 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF
         if (_nfcShield->PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_B, BLOCK_NUMBER_OF_SECTOR_TRAILER(idx), &KEY_DEFAULT_KEYAB, &(_nfcShield->uid)) != MFRC522::STATUS_OK)
         {
-#ifdef NDEF_USE_SERIAL
-            Serial.print(F("Authentication failed for sector ")); Serial.println(idx);
-#endif
+            ESP_LOGE(LOG_TAG, "Authentication failed for sector %d", idx);
             return false;
         }
 
@@ -332,9 +293,7 @@ bool MifareClassic::formatMifare()
         {
             if (_nfcShield->MIFARE_Write((BLOCK_NUMBER_OF_SECTOR_TRAILER(idx)) - 2, emptyBlock, 16) != MFRC522::STATUS_OK)
             {
-#ifdef NDEF_USE_SERIAL
-                Serial.print(F("Unable to write to sector ")); Serial.println(idx);
-#endif
+                ESP_LOGE(LOG_TAG, "Unable to write to sector %d", idx);
             }
         }
         else
@@ -342,31 +301,23 @@ bool MifareClassic::formatMifare()
             // this block has not to be overwritten for block 0. It contains Tag id and other unique data.
             if (_nfcShield->MIFARE_Write((BLOCK_NUMBER_OF_SECTOR_TRAILER(idx)) - 3, emptyBlock, 16) != MFRC522::STATUS_OK)
             {
-#ifdef NDEF_USE_SERIAL
-                Serial.print(F("Unable to write to sector ")); Serial.println(idx);
-#endif
+                ESP_LOGE(LOG_TAG, "Unable to write to sector %d", idx);
             }
             if (_nfcShield->MIFARE_Write((BLOCK_NUMBER_OF_SECTOR_TRAILER(idx)) - 2, emptyBlock, 16) != MFRC522::STATUS_OK)
             {
-#ifdef NDEF_USE_SERIAL
-                Serial.print(F("Unable to write to sector ")); Serial.println(idx);
-#endif
+                ESP_LOGE(LOG_TAG, "Unable to write to sector %d", idx);
             }
         }
 
         if (_nfcShield->MIFARE_Write((BLOCK_NUMBER_OF_SECTOR_TRAILER(idx)) - 1, emptyBlock, 16) != MFRC522::STATUS_OK)
         {
-#ifdef NDEF_USE_SERIAL
-            Serial.print(F("Unable to write to sector ")); Serial.println(idx);
-#endif
+            ESP_LOGE(LOG_TAG, "Unable to write to sector %d", idx);
         }
 
         // Write the trailer block
         if (_nfcShield->MIFARE_Write((BLOCK_NUMBER_OF_SECTOR_TRAILER(idx)), authBlock, 16) != MFRC522::STATUS_OK)
         {
-#ifdef NDEF_USE_SERIAL
-            Serial.print(F("Unable to write trailer block of sector ")); Serial.println(idx);
-#endif
+            ESP_LOGE(LOG_TAG, "Unable to write trailer byte of sector %d", idx);
         }
     }
     return true;
@@ -381,10 +332,8 @@ bool MifareClassic::write(NdefMessage& m)
     uint8_t buffer[getBufferSize(sizeof(encoded))];
     memset(buffer, 0, sizeof(buffer));
 
-    #ifdef MIFARE_CLASSIC_DEBUG
-    Serial.print(F("sizeof(encoded) "));Serial.println(sizeof(encoded));
-    Serial.print(F("sizeof(buffer) "));Serial.println(sizeof(buffer));
-    #endif
+    ESP_LOGD(LOG_TAG, "sizeof(encoded) %d", sizeof(encoded));
+    ESP_LOGD(LOG_TAG, "sizeof(buffer) %d", sizeof(buffer));
 
     if (sizeof(encoded) < 0xFF)
     {
@@ -416,26 +365,20 @@ bool MifareClassic::write(NdefMessage& m)
             MFRC522::StatusCode status =_nfcShield->PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, currentBlock, &key, &(_nfcShield->uid));
             if (status != MFRC522::STATUS_OK)
             {
-#ifdef NDEF_USE_SERIAL
-                Serial.print(F("Error. Block authentication failed for block "));Serial.println(currentBlock);
-                Serial.print(_nfcShield->GetStatusCodeName(status));
-#endif
+                ESP_LOGE(LOG_TAG, "Error. Block authentication failed for block %d: %s", currentBlock, MFRC522Debug::GetStatusCodeName(status));
                 return false;
             }
         }
 
         if (_nfcShield->MIFARE_Write(currentBlock, &buffer[index], BLOCK_SIZE) != MFRC522::STATUS_OK)
         {
-#ifdef NDEF_USE_SERIAL
-            Serial.print(F("Write failed "));Serial.println(currentBlock);
-#endif
+            ESP_LOGE(LOG_TAG, "Write failed %d", currentBlock);
             return false;
         }
 
-        #ifdef MIFARE_CLASSIC_DEBUG
-        Serial.print(F("Wrote block "));Serial.print(currentBlock);Serial.print(" - ");
-        PrintHexChar(&buffer[index], BLOCK_SIZE);
-        #endif
+        
+        ESP_LOGD(LOG_TAG, "Wrote block %d:", currentBlock)
+        ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, &buffer[index], BLOCK_SIZE, ESP_LOG_DEBUG);
 
         index += BLOCK_SIZE;
         currentBlock++;
@@ -443,9 +386,7 @@ bool MifareClassic::write(NdefMessage& m)
         if (((currentBlock < 128) && ((currentBlock+1) % 4 == 0)) || ((currentBlock >= 128) && ((currentBlock+1) % 16 == 0)))
         {
             // can't write to trailer block
-            #ifdef MIFARE_CLASSIC_DEBUG
-            Serial.print(F("Skipping block "));Serial.println(currentBlock);
-            #endif
+            ESP_LOGD(LOG_TAG, "Skipping block %d", currentBlock);
             currentBlock++;
         }
 

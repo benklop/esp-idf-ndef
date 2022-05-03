@@ -1,8 +1,8 @@
 #ifndef NfcTag_h
 #define NfcTag_h
 
+#include <cstring>
 #include <inttypes.h>
-#include <Arduino.h>
 #include <NdefMessage.h>
 
 class NfcTag
@@ -17,14 +17,11 @@ class NfcTag
         NfcTag& operator=(const NfcTag &rhs);
         uint8_t getUidLength();
         void getUid(byte *uid, uint8_t *uidLength);
-        String getUidString();
         TagType getTagType();
         bool hasNdefMessage();
         NdefMessage getNdefMessage();
         bool isFormatted();
-#ifdef NDEF_USE_SERIAL
         void print();
-#endif
     private:
         byte *_uid;
         uint8_t _uidLength;
