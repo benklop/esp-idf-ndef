@@ -160,7 +160,7 @@ bool NdefMessage::addRecord(NdefRecord &record)
     }
     else
     {
-        ESP_LOGI(LOG_TAG, "WARNING: Too many records. Increase MAX_NDEF_RECORDS.");
+        ESP_LOGW(LOG_TAG, "WARNING: Too many records. Increase MAX_NDEF_RECORDS.");
         return false;
     }
 }
