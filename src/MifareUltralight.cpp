@@ -1,6 +1,27 @@
 #include <esp_log.h>
 #include "MifareUltralight.h"
 
+/**
+ *
+ * From: https://github.com/miguelbalboa/rfid/blob/master/src/MFRC522.h
+ *  * MIFARE Ultralight (MF0ICU1):
+ * 		Has 16 pages of 4 bytes = 64 bytes.
+ * 		Pages 0 + 1 is used for the 7-byte UID.
+ * 		Page 2 contains the last check digit for the UID, one byte
+ * manufacturer internal data, and the lock bytes (see
+ * http://www.nxp.com/documents/data_sheet/MF0ICU1.pdf section 8.5.2) Page 3 is
+ * OTP, One Time Programmable bits. Once set to 1 they cannot revert to 0. Pages
+ * 4-15 are read/write unless blocked by the lock bytes in page 2. MIFARE
+ * Ultralight C (MF0ICU2): Has 48 pages of 4 bytes = 192 bytes. Pages 0 + 1 is
+ * used for the 7-byte UID. Page 2 contains the last check digit for the UID,
+ * one byte manufacturer internal data, and the lock bytes (see
+ * http://www.nxp.com/documents/data_sheet/MF0ICU1.pdf section 8.5.2) Page 3 is
+ * OTP, One Time Programmable bits. Once set to 1 they cannot revert to 0. Pages
+ * 4-39 are read/write unless blocked by the lock bytes in page 2. Page 40 Lock
+ * bytes Page 41 16 bit one way counter Pages 42-43 Authentication configuration
+ * 		Pages 44-47 Authentication key
+ */
+
 static const char* LOG_TAG = "Mifare Ultralight";
 
 MifareUltralight::MifareUltralight(MFRC522 *nfcShield)
@@ -34,7 +55,7 @@ NfcTag MifareUltralight::read()
 
     uint8_t index = 0;
     byte buffer[bufferSize];
-    for (uint8_t page = ULTRALIGHT_DATA_START_PAGE; page < ULTRALIGHT_MAX_PAGE; page+=(ULTRALIGHT_READ_SIZE/ULTRALIGHT_PAGE_SIZE))
+    for (uint8_t page = ULTRALIGHT_DATA_START_PAGE; page < ULTRALIGHT_MAX_PAGE; page++)
     {
         // read the data
         byte dataSize = ULTRALIGHT_READ_SIZE + 2;
@@ -43,13 +64,10 @@ NfcTag MifareUltralight::read()
         {
             ESP_LOGD(LOG_TAG, "Page %d:", page);
             ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, &buffer[index], ULTRALIGHT_PAGE_SIZE, ESP_LOG_DEBUG);
-            ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, &buffer[index+ULTRALIGHT_PAGE_SIZE], ULTRALIGHT_PAGE_SIZE, ESP_LOG_DEBUG);
-            ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, &buffer[index+2*ULTRALIGHT_PAGE_SIZE], ULTRALIGHT_PAGE_SIZE, ESP_LOG_DEBUG);
-            ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, &buffer[index+3*ULTRALIGHT_PAGE_SIZE], ULTRALIGHT_PAGE_SIZE, ESP_LOG_DEBUG);
         }
         else
         {
-            ESP_LOGI(LOG_TAG, "Read failed %d", page);
+            ESP_LOGE(LOG_TAG, "Page %d: Read Failed - Status: %d", page, status);
             return NfcTag(nfc->uid.uidByte, nfc->uid.size, NfcTag::TYPE_2);
         }
 
@@ -58,7 +76,7 @@ NfcTag MifareUltralight::read()
             break;
         }
 
-        index += ULTRALIGHT_READ_SIZE;
+        index += ULTRALIGHT_PAGE_SIZE;
     }
 
     return NfcTag(nfc->uid.uidByte, nfc->uid.size, NfcTag::TYPE_2, &buffer[ndefStartIndex], messageLength);
@@ -77,7 +95,7 @@ bool MifareUltralight::isUnformatted()
     }
     else
     {
-        ESP_LOGI(LOG_TAG, "Error. Failed read page %d", page);
+        ESP_LOGE(LOG_TAG, "Error. Failed read page %d", page);
         return false;
     }
 }
@@ -147,7 +165,7 @@ uint16_t MifareUltralight::calculateBufferSize(uint16_t messageLength, uint16_t 
 
     //MFRC522 also return CRC
     bufferSize += 2;
-
+    ESP_LOGD(LOG_TAG, "Buffer size is %d", bufferSize);
     return bufferSize;
 }
 
