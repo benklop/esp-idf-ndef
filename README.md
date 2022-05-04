@@ -14,7 +14,7 @@ This code works with the cheap MFRC522 tag reader.
 
 ### Requires
 
-[MFRC522 Library](https://github.com/benklop/esp-idf-mfrc522)
+[MFRC522 Library for ESP-IDF](https://github.com/benklop/esp-idf-mfrc522)
 
 ### NfcAdapter
 
