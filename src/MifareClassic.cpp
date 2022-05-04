@@ -377,7 +377,7 @@ bool MifareClassic::write(NdefMessage& m)
         }
 
         
-        ESP_LOGD(LOG_TAG, "Wrote block %d:", currentBlock)
+        ESP_LOGD(LOG_TAG, "Wrote block %d:", currentBlock);
         ESP_LOG_BUFFER_HEX_LEVEL(LOG_TAG, &buffer[index], BLOCK_SIZE, ESP_LOG_DEBUG);
 
         index += BLOCK_SIZE;

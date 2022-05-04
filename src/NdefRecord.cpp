@@ -313,7 +313,7 @@ void NdefRecord::print()
         meaning = "Reserved";
         break;
     }
-    ESP_LOGI(LOG_TAG, "    TNF 0x%x, %s", _tnf, meaning);
+    ESP_LOGI(LOG_TAG, "    TNF 0x%x, %s", _tnf, meaning.c_str());
 
     ESP_LOGI(LOG_TAG, "    Type Length 0x%x %d", _typeLength, _typeLength);
     ESP_LOGI(LOG_TAG, "    Payload Length 0x%x %d", _payloadLength, _payloadLength);
